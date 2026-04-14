@@ -32,17 +32,17 @@ RUN python3 -m pip install --no-cache-dir "protobuf>=3.20.0,<=3.20.3" "fonttools
 
 # ENV PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
 
-RUN sed -i 's/collections\.Mapping/collections.abc.Mapping/g' /miniconda3/lib/python3.10/site-packages/sagemaker_containers/_mapping.py
+RUN sed -i 's/collections\.Mapping/collections.abc.Mapping/g' /miniconda3/lib/python${PYTHON_VERSION}/site-packages/sagemaker_containers/_mapping.py
 
 ###########################
 # Copy wheel to container #
 ###########################
-COPY dist/sagemaker_xgboost_container-2.0-py2.py3-none-any.whl /sagemaker_xgboost_container-1.0-py2.py3-none-any.whl
+COPY dist/sagemaker_xgboost_container-*.whl /tmp/
 RUN rm -rf /miniconda3/lib/python${PYTHON_VERSION}/site-packages/numpy-1.21.2.dist-info && \
     python3 -m pip install --force-reinstall PyYAML==6.0.1 && \
-    python3 -m pip install --no-cache --no-deps /sagemaker_xgboost_container-1.0-py2.py3-none-any.whl && \
+    python3 -m pip install --no-cache --no-deps /tmp/sagemaker_xgboost_container-*.whl && \
     python3 -m pip uninstall -y typing && \
-    rm /sagemaker_xgboost_container-1.0-py2.py3-none-any.whl && \
+    rm -f /tmp/sagemaker_xgboost_container-*.whl && \
     ln -sf /miniconda3/bin/pip3 /usr/local/bin/pip3
 
 ##############
