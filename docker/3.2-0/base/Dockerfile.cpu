@@ -171,6 +171,11 @@ RUN git clone -b v1.65.4 https://github.com/grpc/grpc.git && \
     sed -i 's/find_package(Arrow 14.0.1 REQUIRED/find_package(Arrow 22.0.0 REQUIRED/g' CMakeLists.txt && \
     sed -i 's/pyarrow==14.0.1/pyarrow==22.0.0/g' src/mlio-py/setup.py && \
     build-tools/build-dependency build/third-party all && \
+    # MLIO's vendored pybind11 is not Python 3.12 compatible; replace with a newer release.
+    python3 -m pip install --no-cache-dir "pybind11>=2.12.0" && \
+    PYBIND11_INCLUDE_DIR="$(python3 -c 'import pybind11; print(pybind11.get_include())')" && \
+    rm -rf build/third-party/include/pybind11 && \
+    cp -r "${PYBIND11_INCLUDE_DIR}/pybind11" build/third-party/include/ && \
     mkdir -p build/release && \
     cd build/release && \
     cmake -GNinja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_PREFIX_PATH="$(pwd)/../third-party" ../.. && \
