@@ -3,19 +3,19 @@ ARG SAGEMAKER_XGBOOST_VERSION=3.2-0
 FROM xgb-base:3.2-0-cpu
 
 ARG SAGEMAKER_XGBOOST_VERSION=3.2-0
-ARG PYTHON_VERSION=3.10
+ARG PYTHON_VERSION=3.12
 
 ########################
 # Install dependencies #
 ########################
 
-# Fix Python 3.10 compatibility for sagemaker-containers
-# RUN python3 -c "import sys; sys.path.insert(0, '/miniconda3/lib/python3.10/site-packages'); \
+# Fix Python 3.12 compatibility for sagemaker-containers
+# RUN python3 -c "import sys; sys.path.insert(0, '/miniconda3/lib/python3.12/site-packages'); \
 #     import sagemaker_containers._mapping as m; \
 #     import collections.abc; \
 #     setattr(collections, 'Mapping', collections.abc.Mapping); \
-#     exec(open('/miniconda3/lib/python3.10/site-packages/sagemaker_containers/_mapping.py').read().replace('collections.Mapping', 'collections.abc.Mapping'))" || \
-#     sed -i 's/collections\.Mapping/collections.abc.Mapping/g' /miniconda3/lib/python3.10/site-packages/sagemaker_containers/_mapping.py
+#     exec(open('/miniconda3/lib/python3.12/site-packages/sagemaker_containers/_mapping.py').read().replace('collections.Mapping', 'collections.abc.Mapping'))" || \
+#     sed -i 's/collections\.Mapping/collections.abc.Mapping/g' /miniconda3/lib/python3.12/site-packages/sagemaker_containers/_mapping.py
 
 
 # Install smdebug from source

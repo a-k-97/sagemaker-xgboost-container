@@ -27,7 +27,7 @@ FROM nvidia/cuda:${CUDA_VERSION}-base-ubuntu${UBUNTU_VERSION}
 
 ARG MINIFORGE_VERSION=25.9.1-0
 ARG CONDA_CHECKSUM=07f64c1d908ae036e9f6a81f97704899311c0ae677d83980d664b9781d4cc5fc
-ARG PYTHON_VERSION=3.10
+ARG PYTHON_VERSION=3.12
 ARG PYARROW_VERSION=22.0.0
 ARG MLIO_VERSION=0.9.0
 ARG XGBOOST_VERSION=3.2.0
@@ -213,4 +213,4 @@ RUN python3 -m pip install --no-cache -I xgboost==${XGBOOST_VERSION} numpy==2.1.
 
 # Starting from XGBoost 2.1.0, the PyPI package won't bundle with nccl
 # set PATH so xgboost can find libnccl
-ENV LD_LIBRARY_PATH=/miniconda3/lib/python3.10/site-packages/nvidia/nccl/lib:$LD_LIBRARY_PATH
+ENV LD_LIBRARY_PATH=/miniconda3/lib/python3.12/site-packages/nvidia/nccl/lib:$LD_LIBRARY_PATH
