@@ -3,10 +3,10 @@ import sys
 import pkg_resources
 
 PYTHON_MAJOR_VERSION = 3
-PYTHON_MINOR_VERSION = 10
+PYTHON_MINOR_VERSION = 12
 REQUIREMENTS = """\
 Flask==1.1.1
-Pillow==9.1.1
+Pillow==10.4.0
 PyYAML==6.0.1
 boto3==1.17.52
 botocore==1.20.52
