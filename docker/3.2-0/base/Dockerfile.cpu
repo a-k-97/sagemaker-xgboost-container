@@ -191,6 +191,12 @@ RUN cmake -GNinja \
         -DMLIO_INCLUDE_PYTHON_EXTENSION=ON \
         -DPYTHON_EXECUTABLE="/miniconda3/bin/python3" \
         -DMLIO_INCLUDE_ARROW_INTEGRATION=ON \
+        # Conda's GNU libiconv header (/miniconda3/include/iconv.h) remaps iconv_* to
+        # libiconv_*, so the glibc built-in cannot satisfy the symbols — link conda's lib.
+        -DIconv_IS_BUILT_IN=FALSE \
+        # Vendored pybind11 CMake reads the removed-in-3.11 'SO' sysconfig var, yielding
+        # extensions named '_coreNone' — use pip's pybind11 CMake config instead.
+        -Dpybind11_DIR="$(python3 -m pybind11 --cmakedir)" \
         -DCMAKE_PREFIX_PATH="$(pwd)/../third-party;/miniconda3" ../..
 
 # Build MLIO library + Python extensions
