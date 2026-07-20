@@ -199,12 +199,16 @@ RUN cmake -DMLIO_INCLUDE_PYTHON_EXTENSION=ON \
     cmake --build . --target mlio-py && \
     cmake --build . --target mlio-arrow
 
-# Package and install MLIO wheel
+# Package and install MLIO (pip install . copies prebuilt .so extensions; wheels omit them)
 WORKDIR /tmp/mlio/src/mlio-py
-RUN python3 setup.py bdist_wheel && \
-    python3 -m pip install typing && \
+RUN test -n "$(ls mlio/_core*.so)" && \
+    test -n "$(ls mlio/integ/arrow/*.so)" && \
     python3 -m pip install --upgrade pip==25.2 && \
-    python3 -m pip install --no-deps dist/*.whl && \
+    python3 -m pip install --no-deps --no-cache-dir . && \
+    MLIO_SITE="$(python3 -c 'import site; print(site.getsitepackages()[0])')" && \
+    cp -f mlio/_core*.so "${MLIO_SITE}/mlio/" && \
+    cp -f mlio/integ/arrow/*.so "${MLIO_SITE}/mlio/integ/arrow/" && \
+    test -f "${MLIO_SITE}/mlio/_core$(python3 -c 'import sysconfig; print(sysconfig.get_config_var("EXT_SUFFIX"))')" && \
     cp /tmp/mlio/build/release/lib/libmlio.so* /usr/local/lib/ && \
     cp -r /tmp/mlio/build/third-party/lib/libtbb* /usr/local/lib/ && \
     ldconfig
