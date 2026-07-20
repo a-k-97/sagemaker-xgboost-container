@@ -8,8 +8,8 @@ REQUIREMENTS = """\
 Flask==1.1.1
 Pillow==10.4.0
 PyYAML==6.0.1
-boto3==1.17.52
-botocore==1.20.52
+boto3==1.28.27
+botocore==1.31.85
 conda==25.9.1
 cryptography==45.0.5
 gunicorn==23.0.0
