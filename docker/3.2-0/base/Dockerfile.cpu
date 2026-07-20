@@ -204,14 +204,15 @@ WORKDIR /tmp/mlio/src/mlio-py
 RUN python3 setup.py bdist_wheel && \
     python3 -m pip install typing && \
     python3 -m pip install --upgrade pip==25.2 && \
-    python3 -m pip install dist/*.whl && \
+    python3 -m pip install --no-deps dist/*.whl && \
     cp /tmp/mlio/build/release/lib/libmlio.so* /usr/local/lib/ && \
     cp -r /tmp/mlio/build/third-party/lib/libtbb* /usr/local/lib/ && \
-    ldconfig && \
-    rm -rf /tmp/mlio /root/.cache/pip
+    ldconfig
 
+# Remove MLIO source before verify: cwd must not point inside /tmp/mlio
 WORKDIR /
-RUN python3 -c "import mlio; print('mlio', mlio.__version__)"
+RUN rm -rf /tmp/mlio /root/.cache/pip && \
+    python3 -c "import mlio; print('mlio', mlio.__version__)"
 
 # Copy compiled SQLite from builder stage
 COPY --from=sqlite-builder /usr/local/bin/sqlite3 /usr/local/bin/sqlite3
