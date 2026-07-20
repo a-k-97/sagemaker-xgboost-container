@@ -191,24 +191,26 @@ RUN cmake -GNinja \
         -DMLIO_INCLUDE_PYTHON_EXTENSION=ON \
         -DPYTHON_EXECUTABLE="/miniconda3/bin/python3" \
         -DMLIO_INCLUDE_ARROW_INTEGRATION=ON \
-        -DCMAKE_PREFIX_PATH="$(pwd)/../third-party" ../..
+        -DCMAKE_PREFIX_PATH="$(pwd)/../third-party;/miniconda3" ../..
 
-# Build MLIO library + Python extensions; record .so paths for install
-RUN cmake --build . && \
-    cmake --build . --target install && \
-    find /tmp/mlio \( -name '_core*.so' -o -path '*/mlio/integ/arrow/*.so' \) | sort | tee /tmp/mlio-extensions.txt && \
-    grep -q _core /tmp/mlio-extensions.txt && \
-    grep -q 'integ/arrow' /tmp/mlio-extensions.txt
+# Build MLIO library + Python extensions
+RUN cmake --build . --target mlio mlio-py mlio-arrow && \
+    cmake --build . --target install
+
+# Record native module paths (_core in mlio/; arrow in mlio/integ/)
+RUN find /tmp/mlio \( -name '_core*.so' -o -name 'arrow*.so' \) | sort | tee /tmp/mlio-extensions.txt && \
+    grep -q '_core' /tmp/mlio-extensions.txt && \
+    grep -q 'arrow' /tmp/mlio-extensions.txt
 
 # Install MLIO Python package and copy native modules into site-packages
 WORKDIR /tmp/mlio
-RUN CORE_SO="$(grep _core /tmp/mlio-extensions.txt | head -1)" && \
-    ARROW_SO="$(grep 'integ/arrow' /tmp/mlio-extensions.txt | head -1)" && \
+RUN CORE_SO="$(grep '_core' /tmp/mlio-extensions.txt | head -1)" && \
+    ARROW_SO="$(grep 'arrow' /tmp/mlio-extensions.txt | head -1)" && \
     python3 -m pip install --upgrade pip==25.2 && \
     python3 -m pip install --no-deps --no-cache-dir src/mlio-py && \
     MLIO_SITE="$(python3 -c 'import site; print(site.getsitepackages()[0])')" && \
     cp -f "$CORE_SO" "${MLIO_SITE}/mlio/" && \
-    cp -f "$ARROW_SO" "${MLIO_SITE}/mlio/integ/arrow/" && \
+    cp -f "$ARROW_SO" "${MLIO_SITE}/mlio/integ/" && \
     cp /tmp/mlio/build/release/lib/libmlio.so* /usr/local/lib/ && \
     cp -r /tmp/mlio/build/third-party/lib/libtbb* /usr/local/lib/ && \
     ldconfig
