@@ -194,8 +194,8 @@ RUN git clone -b v1.65.4 https://github.com/grpc/grpc.git && \
     cp /tmp/mlio/build/release/lib/libmlio.so* /usr/local/lib/ && \
     cp -r /tmp/mlio/build/third-party/lib/libtbb* /usr/local/lib/ && \
     ldconfig && \
-    python3 -c "import mlio; print('mlio', mlio.__version__)" && \
-    rm -rf /tmp/mlio
+    rm -rf /tmp/mlio /root/.cache/pip && \
+    python3 -c "import mlio; print('mlio', mlio.__version__)"
 
 # Copy compiled SQLite from builder stage
 COPY --from=sqlite-builder /usr/local/bin/sqlite3 /usr/local/bin/sqlite3
