@@ -149,7 +149,7 @@ RUN conda config --system --set auto_update_conda false && \
         pyarrow=${PYARROW_VERSION} && \
     conda clean -afy
 
-# Then handle the grpc and npm parts separately
+# gRPC workaround for conda libgrpc package (needed before MLIO build)
 RUN git clone -b v1.65.4 https://github.com/grpc/grpc.git && \
     LIBGRPC_DIR=$(find /miniconda3/pkgs -name "libgrpc-*" -type d | head -n 1) && \
     mkdir -p ${LIBGRPC_DIR}/info/test/examples && \
@@ -157,45 +157,61 @@ RUN git clone -b v1.65.4 https://github.com/grpc/grpc.git && \
     cd ${LIBGRPC_DIR}/info/test/examples/node && \
     npm cache clean --force && \
     npm install minimist@latest protobufjs@latest && \
+    rm -rf /grpc && \
     apt-get purge -y nodejs npm && \
     apt-get autoremove -y && \
     rm -rf /etc/apt/sources.list.d/nodesource.list \
         /etc/apt/keyrings/nodesource.gpg \
         /etc/apt/sources.list.d/kitware.list && \
     apt-get clean && \
-    rm -rf /var/lib/apt/lists/* && \
-    # Continue with the rest of the build process
-    cd /tmp && \
-    git clone --branch v${MLIO_VERSION} https://github.com/awslabs/ml-io.git mlio && \
-    cd mlio && \
-    sed -i 's/find_package(Arrow 14.0.1 REQUIRED/find_package(Arrow 22.0.0 REQUIRED/g' CMakeLists.txt && \
-    sed -i 's/pyarrow==14.0.1/pyarrow==22.0.0/g' src/mlio-py/setup.py && \
-    build-tools/build-dependency build/third-party all && \
-    # MLIO's vendored pybind11 is not Python 3.12 compatible; replace with a newer release.
+    rm -rf /var/lib/apt/lists/*
+
+# Clone MLIO and apply Python 3.12 / PyArrow compatibility patches
+WORKDIR /tmp
+RUN git clone --branch v${MLIO_VERSION} https://github.com/awslabs/ml-io.git mlio
+
+WORKDIR /tmp/mlio
+RUN sed -i 's/find_package(Arrow 14.0.1 REQUIRED/find_package(Arrow 22.0.0 REQUIRED/g' CMakeLists.txt && \
+    sed -i 's/pyarrow==14.0.1/pyarrow==22.0.0/g' src/mlio-py/setup.py
+
+# Build MLIO third-party dependencies and patch pybind11 for Python 3.12
+RUN build-tools/build-dependency build/third-party all && \
     python3 -m pip install --no-cache-dir "pybind11>=2.12.0" && \
     PYBIND11_INCLUDE_DIR="$(python3 -c 'import pybind11; print(pybind11.get_include())')" && \
     rm -rf build/third-party/include/pybind11 && \
-    cp -r "${PYBIND11_INCLUDE_DIR}/pybind11" build/third-party/include/ && \
-    mkdir -p build/release && \
-    cd build/release && \
-    cmake -GNinja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_PREFIX_PATH="$(pwd)/../third-party" ../.. && \
-    cmake --build . && \
-    cmake --build . --target install && \
-    cmake -DMLIO_INCLUDE_PYTHON_EXTENSION=ON -DPYTHON_EXECUTABLE="/miniconda3/bin/python3" \
+    cp -r "${PYBIND11_INCLUDE_DIR}/pybind11" build/third-party/include/
+
+# Configure and build MLIO core library
+RUN mkdir -p build/release
+WORKDIR /tmp/mlio/build/release
+RUN cmake -GNinja \
+        -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+        -DMLIO_INCLUDE_TESTS=OFF \
+        -DMLIO_INCLUDE_DOC=OFF \
+        -DCMAKE_PREFIX_PATH="$(pwd)/../third-party" ../..
+
+RUN cmake --build . && cmake --build . --target install
+
+# Build MLIO Python extension and Arrow integration
+RUN cmake -DMLIO_INCLUDE_PYTHON_EXTENSION=ON \
+        -DPYTHON_EXECUTABLE="/miniconda3/bin/python3" \
         -DMLIO_INCLUDE_ARROW_INTEGRATION=ON ../.. && \
     cmake --build . --target mlio-py && \
-    cmake --build . --target mlio-arrow && \
-    cd ../../src/mlio-py && \
-    python3 setup.py bdist_wheel && \
+    cmake --build . --target mlio-arrow
+
+# Package and install MLIO wheel
+WORKDIR /tmp/mlio/src/mlio-py
+RUN python3 setup.py bdist_wheel && \
     python3 -m pip install typing && \
-    # pip will attempt to install setuptools from PyPi from pip>=25.3
     python3 -m pip install --upgrade pip==25.2 && \
     python3 -m pip install dist/*.whl && \
     cp /tmp/mlio/build/release/lib/libmlio.so* /usr/local/lib/ && \
     cp -r /tmp/mlio/build/third-party/lib/libtbb* /usr/local/lib/ && \
     ldconfig && \
-    rm -rf /tmp/mlio /root/.cache/pip && \
-    python3 -c "import mlio; print('mlio', mlio.__version__)"
+    rm -rf /tmp/mlio /root/.cache/pip
+
+WORKDIR /
+RUN python3 -c "import mlio; print('mlio', mlio.__version__)"
 
 # Copy compiled SQLite from builder stage
 COPY --from=sqlite-builder /usr/local/bin/sqlite3 /usr/local/bin/sqlite3
