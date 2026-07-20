@@ -191,8 +191,10 @@ RUN git clone -b v1.65.4 https://github.com/grpc/grpc.git && \
     # pip will attempt to install setuptools from PyPi from pip>=25.3
     python3 -m pip install --upgrade pip==25.2 && \
     python3 -m pip install dist/*.whl && \
+    cp /tmp/mlio/build/release/lib/libmlio.so* /usr/local/lib/ && \
     cp -r /tmp/mlio/build/third-party/lib/libtbb* /usr/local/lib/ && \
     ldconfig && \
+    python3 -c "import mlio; print('mlio', mlio.__version__)" && \
     rm -rf /tmp/mlio
 
 # Copy compiled SQLite from builder stage
@@ -218,4 +220,4 @@ RUN python3 -m pip install --no-cache -I xgboost==${XGBOOST_VERSION} numpy==2.1.
 
 # Starting from XGBoost 2.1.0, the PyPI package won't bundle with nccl
 # set PATH so xgboost can find libnccl
-ENV LD_LIBRARY_PATH=/miniconda3/lib/python3.12/site-packages/nvidia/nccl/lib:$LD_LIBRARY_PATH
+ENV LD_LIBRARY_PATH=/usr/local/lib:/miniconda3/lib/python3.12/site-packages/nvidia/nccl/lib:$LD_LIBRARY_PATH
