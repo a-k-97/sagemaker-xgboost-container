@@ -181,34 +181,34 @@ RUN build-tools/build-dependency build/third-party all && \
     rm -rf build/third-party/include/pybind11 && \
     cp -r "${PYBIND11_INCLUDE_DIR}/pybind11" build/third-party/include/
 
-# Configure and build MLIO core library
+# Configure MLIO (include Python extension from the start)
 RUN mkdir -p build/release
 WORKDIR /tmp/mlio/build/release
 RUN cmake -GNinja \
         -DCMAKE_BUILD_TYPE=RelWithDebInfo \
         -DMLIO_INCLUDE_TESTS=OFF \
         -DMLIO_INCLUDE_DOC=OFF \
+        -DMLIO_INCLUDE_PYTHON_EXTENSION=ON \
+        -DPYTHON_EXECUTABLE="/miniconda3/bin/python3" \
+        -DMLIO_INCLUDE_ARROW_INTEGRATION=ON \
         -DCMAKE_PREFIX_PATH="$(pwd)/../third-party" ../..
 
-RUN cmake --build . && cmake --build . --target install
+# Build MLIO library + Python extensions; record .so paths for install
+RUN cmake --build . && \
+    cmake --build . --target install && \
+    find /tmp/mlio \( -name '_core*.so' -o -path '*/mlio/integ/arrow/*.so' \) | sort | tee /tmp/mlio-extensions.txt && \
+    grep -q _core /tmp/mlio-extensions.txt && \
+    grep -q 'integ/arrow' /tmp/mlio-extensions.txt
 
-# Build MLIO Python extension and Arrow integration
-RUN cmake -DMLIO_INCLUDE_PYTHON_EXTENSION=ON \
-        -DPYTHON_EXECUTABLE="/miniconda3/bin/python3" \
-        -DMLIO_INCLUDE_ARROW_INTEGRATION=ON ../.. && \
-    cmake --build . --target mlio-py && \
-    cmake --build . --target mlio-arrow
-
-# Package and install MLIO (pip install . copies prebuilt .so extensions; wheels omit them)
-WORKDIR /tmp/mlio/src/mlio-py
-RUN test -n "$(ls mlio/_core*.so)" && \
-    test -n "$(ls mlio/integ/arrow/*.so)" && \
+# Install MLIO Python package and copy native modules into site-packages
+WORKDIR /tmp/mlio
+RUN CORE_SO="$(grep _core /tmp/mlio-extensions.txt | head -1)" && \
+    ARROW_SO="$(grep 'integ/arrow' /tmp/mlio-extensions.txt | head -1)" && \
     python3 -m pip install --upgrade pip==25.2 && \
-    python3 -m pip install --no-deps --no-cache-dir . && \
+    python3 -m pip install --no-deps --no-cache-dir src/mlio-py && \
     MLIO_SITE="$(python3 -c 'import site; print(site.getsitepackages()[0])')" && \
-    cp -f mlio/_core*.so "${MLIO_SITE}/mlio/" && \
-    cp -f mlio/integ/arrow/*.so "${MLIO_SITE}/mlio/integ/arrow/" && \
-    test -f "${MLIO_SITE}/mlio/_core$(python3 -c 'import sysconfig; print(sysconfig.get_config_var("EXT_SUFFIX"))')" && \
+    cp -f "$CORE_SO" "${MLIO_SITE}/mlio/" && \
+    cp -f "$ARROW_SO" "${MLIO_SITE}/mlio/integ/arrow/" && \
     cp /tmp/mlio/build/release/lib/libmlio.so* /usr/local/lib/ && \
     cp -r /tmp/mlio/build/third-party/lib/libtbb* /usr/local/lib/ && \
     ldconfig
